@@ -1,0 +1,41 @@
+stages: #этапы
+  - stats_analis
+  - secrets
+  - container_scan
+  - web_application_scan
+  - build_and_deploy
+
+
+stats_analis: # статистический анализ
+  stage: stats_analis
+  script:
+    - npm install -g eslint   
+    - eslint --init          
+    - eslint .         
+       
+secrets:
+  stage: secrets
+  script:
+    - trufflehog --path ~/Рабочий\ стол/dz/calc_docker
+
+  
+container_scan: #сканировнаие докер образов
+  stage: container_scan
+  script:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL calc_docker:latest
+
+web_application_scan: #безопасность веб прилодения
+  stage: web_application_scan
+  script:
+    - zap-baseline.py -t http://127.0.0.1:5000/sum -r report_sum.html
+    - zap-baseline.py -t http://127.0.0.1:5000/minus -r report_minus.html
+    - zap-baseline.py -t http://127.0.0.1:5000/prouz -r report_prouz.html
+    - zap-baseline.py -t http://127.0.0.1:5000/delenie -r report_delenie.html
+
+build_and_deploy:
+  stage: build_and_deploy
+  script:
+    - docker build -t ghcr.io/NataliaBilash/api_calc:latest .
+    - docker stop calc_docker || true  #остановка контейнера 
+    - docker rm calc_docker|| true  #удаление контейнера 
+    - docker run -d -p 5000:5000 --name calc_docker ghcr.io/NataliaBilash/api_calc:latest  # Запуск контейнера
